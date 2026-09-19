@@ -1,0 +1,76 @@
+{
+  "users": [
+    {
+      "id": "395e9738-6de8-458b-9874-c9b2c585e2dc",
+      "name": "emmynence global",
+      "email": "emmanuelolat009@gmail.com",
+      "role": "buyer",
+      "shopName": "emmynence global",
+      "salt": "47a311fa0767920a68ecb94a2ae9c9e5",
+      "passwordHash": "829e643533865fa38a30d0f267322b0b5457773cdfacf6152423c8005d50ccc3f9ffcbd767de09717504bad4e7a581559dcb9b1a2b25cf800c8fd3de25f74225"
+    },
+    {
+      "id": "106fe37f-2ad1-4ad4-9c92-b7f99db34e4d",
+      "name": "emma",
+      "email": "emydigitalpro@gmail.com",
+      "role": "seller",
+      "approvalStatus": "pending",
+      "shopName": "emma shop",
+      "salt": "f167fced59d31c32a5169334efbd46e5",
+      "passwordHash": "d462da16a9be6caa5309e27095dff7412ec692aeb84a47dc6b00e541b3d170efea3aa2c4cdfadd19061ad3cf52e638d553ab4edde896d5f5c2d3688a171abcaf",
+      "shopDescription": "i am happy to sell here",
+      "shopLocation": "Ibadan, Nigeria",
+      "shopImage": ""
+    }
+  ],
+  "products": [
+    {
+      "id": "eggs",
+      "name": "Fresh brown eggs",
+      "sellerId": "seed-1",
+      "seller": "Mama Efe Foods",
+      "price": 3500,
+      "category": "Foodstuff",
+      "location": "Bodija, Ibadan",
+      "image": "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?auto=format&fit=crop&w=700&q=80",
+      "stock": 18,
+      "tag": "Fresh today"
+    },
+    {
+      "id": "tote",
+      "name": "Handwoven raffia tote",
+      "sellerId": "seed-2",
+      "seller": "Adunni Crafts",
+      "price": 12000,
+      "category": "Fashion",
+      "location": "Challenge, Ibadan",
+      "image": "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=700&q=80",
+      "stock": 7,
+      "tag": "Popular"
+    },
+    {
+      "id": "speaker",
+      "name": "Bluetooth speaker",
+      "sellerId": "seed-3",
+      "seller": "Tech Corner",
+      "price": 18500,
+      "category": "Electronics",
+      "location": "Mokola, Ibadan",
+      "image": "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&w=700&q=80",
+      "stock": 5
+    },
+    {
+      "id": "shea",
+      "name": "Shea butter glow set",
+      "sellerId": "seed-4",
+      "seller": "Kemi Naturals",
+      "price": 9800,
+      "category": "Beauty",
+      "location": "Ring Road, Ibadan",
+      "image": "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=700&q=80",
+      "stock": 12,
+      "tag": "Made locally"
+    }
+  ],
+  "orders": []
+}
