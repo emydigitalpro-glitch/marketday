@@ -25,7 +25,10 @@ const ratingsFor = (db, targetType, targetId) => (db.ratings || []).filter((rati
 const ratingStats = (db, targetType, targetId) => { const ratings = ratingsFor(db, targetType, targetId); return { rating: ratings.length ? Number((ratings.reduce((sum, item) => sum + item.score, 0) / ratings.length).toFixed(1)) : 0, reviewCount: ratings.length } }
 const productSales = (db, productId) => db.orders.filter((order) => order.status === 'Paid' && order.items.some((item) => item.productId === productId)).reduce((sum, order) => sum + (order.items.find((item) => item.productId === productId)?.quantity || 0), 0)
 const enrichProduct = (db, product) => { const productStats = ratingStats(db, 'product', product.id); const sellerStats = ratingStats(db, 'seller', product.sellerId); const salesCount = productSales(db, product.id); return { ...product, rating: productStats.rating, reviewCount: productStats.reviewCount, salesCount, sellerRating: sellerStats.rating, sellerReviewCount: sellerStats.reviewCount, performanceScore: salesCount * 4 + productStats.rating * productStats.reviewCount + sellerStats.rating * sellerStats.reviewCount } }
-const json = (response, status, body) => { response.writeHead(status, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': 'http://localhost:5173', 'Access-Control-Allow-Headers': 'Content-Type, X-User-Id' }); response.end(JSON.stringify(body)) }
+const allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173', ...(process.env.ALLOWED_ORIGINS || '').split(',').map((origin) => origin.trim()).filter(Boolean)]
+const resolveOrigin = (origin) => (origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0])
+const corsHeaders = (origin) => ({ 'Access-Control-Allow-Origin': resolveOrigin(origin), 'Access-Control-Allow-Headers': 'Content-Type, X-User-Id', 'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS' })
+const json = (response, status, body) => { response.writeHead(status, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': resolveOrigin(response.requestOrigin), 'Access-Control-Allow-Headers': 'Content-Type, X-User-Id' }); response.end(JSON.stringify(body)) }
 const body = (request) => new Promise((resolve, reject) => { let data = ''; request.on('data', (chunk) => { data += chunk }); request.on('end', () => { try { resolve(data ? JSON.parse(data) : {}) } catch { reject(new Error('Invalid JSON')) } }) })
 const rawBody = (request) => new Promise((resolve) => { const chunks = []; request.on('data', (chunk) => chunks.push(chunk)); request.on('end', () => resolve(Buffer.concat(chunks))) })
 const hash = (password, salt = crypto.randomBytes(16).toString('hex')) => ({ salt, digest: crypto.scryptSync(password, salt, 64).toString('hex') })
@@ -44,7 +47,8 @@ const paystackRequest = async (path, options = {}) => {
 }
 
 const server = http.createServer(async (request, response) => {
-  if (request.method === 'OPTIONS') { response.writeHead(204, { 'Access-Control-Allow-Origin': 'http://localhost:5173', 'Access-Control-Allow-Headers': 'Content-Type, X-User-Id', 'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS' }); response.end(); return }
+  if (request.method === 'OPTIONS') { response.writeHead(204, corsHeaders(request.headers.origin)); response.end(); return }
+  response.requestOrigin = request.headers.origin
   const url = new URL(request.url, `http://${request.headers.host}`)
   const db = readDb()
   try {
@@ -149,7 +153,7 @@ const server = http.createServer(async (request, response) => {
       if (sellers.size !== 1) return json(response, 409, { error: 'For now, checkout must contain products from one seller at a time.' })
       const seller = db.users.find((item) => item.id === [...sellers][0]); if (!sellerIsApproved(seller) || !seller.subaccountCode) return json(response, 409, { error: 'This seller is still under review or has not completed payout setup yet.' })
       const reference = `MD-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`
-      const payment = await paystackRequest('/transaction/initialize', { method: 'POST', body: JSON.stringify({ email: buyer.email, amount: total * 100, reference, subaccount: seller.subaccountCode, callback_url: process.env.PAYSTACK_CALLBACK_URL || 'http://127.0.0.1:5173/?payment=callback' }) })
+      const payment = await paystackRequest('/transaction/initialize', { method: 'POST', body: JSON.stringify({ email: buyer.email, amount: total * 100, reference, subaccount: seller.subaccountCode, callback_url: process.env.PAYSTACK_CALLBACK_URL || 'https://emydigitalpro-glitch.github.io/marketday/' }) })
       db.payments = db.payments || []; db.payments.push({ reference, buyerId: buyer.id, items: input.items, total, status: 'pending', date: new Date().toISOString() }); writeDb(db)
       return json(response, 201, { authorization_url: payment.authorization_url, reference })
     }

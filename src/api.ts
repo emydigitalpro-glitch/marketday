@@ -1,8 +1,10 @@
 export type ApiUser = { id: string; name: string; email: string; role: 'buyer' | 'seller'; approvalStatus?: 'pending' | 'approved'; profileImage?: string; phone?: string; address?: string; details?: string; shopName?: string; shopDescription?: string; shopLocation?: string; shopImage?: string; paymentEmail?: string; payoutReady?: boolean; payoutBank?: string; payoutAccountLast4?: string }
 
+const API_BASE = import.meta.env.VITE_API_URL || ''
+
 const request = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
   const userId = JSON.parse(localStorage.getItem('marketday-user') || 'null')?.id
-  const response = await fetch(`/api${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...(userId ? { 'X-User-Id': userId } : {}), ...options.headers } })
+  const response = await fetch(`${API_BASE}/api${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...(userId ? { 'X-User-Id': userId } : {}), ...options.headers } })
   const result = await response.json()
   if (!response.ok) throw new Error(result.error || 'Something went wrong.')
   return result as T

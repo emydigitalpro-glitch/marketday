@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: marketday-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: node server/index.cjs
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: ALLOWED_ORIGINS
+        value: "https://emydigitalpro-glitch.github.io,http://localhost:5173"
+      - key: PAYSTACK_CALLBACK_URL
+        value: "https://emydigitalpro-glitch.github.io/marketday/"
