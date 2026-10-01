@@ -796,6 +796,19 @@ function App() {
           )}
         </div>
       </header>
+      <nav className="mobile-nav" aria-label="Mobile navigation">
+        <button className={page === "shop" ? "active" : ""} onClick={() => setPage("shop")}>Shop</button>
+        {user?.role !== "seller" && (
+          <button className={page === "products" ? "active" : ""} onClick={() => setPage("products")}>Products</button>
+        )}
+        {user?.role === "buyer" && (
+          <button className={page === "sellers" ? "active" : ""} onClick={() => setPage("sellers")}>Sellers</button>
+        )}
+        {user && (
+          <button className={page === "account" ? "active" : ""} onClick={() => setPage("account")}>Account</button>
+        )}
+        <button onClick={() => user ? setCartOpen(true) : openAuth("signin", "buyer")}>Cart <b>{cart.reduce((sum, item) => sum + item.quantity, 0)}</b></button>
+      </nav>
       {page === "shop" ? (
         <main>
           <section className="hero-section">

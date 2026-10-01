@@ -128,3 +128,24 @@ footer { align-items: center; gap: 16px; margin: 0 6.5%; padding: 25px 0 31px; }
 	.listing-title h3 { min-height: 34px; }
 	.seller-banner h2 { font-size: 28px; }
 }
+
+.mobile-nav { display: none; }
+@media (max-width: 800px) {
+	.mobile-nav { position: sticky; z-index: 3; top: 0; display: flex; gap: 4px; padding: 8px 6%; border-bottom: 1px solid #e6e3da; background: rgba(251, 250, 246, .96); box-shadow: 0 5px 16px #42523c0d; backdrop-filter: blur(12px); }
+	.mobile-nav button { flex: 1; min-width: 0; border: 0; border-radius: 999px; background: transparent; color: #6d766e; font-size: 11px; font-weight: 600; padding: 10px 5px; }
+	.mobile-nav button.active, .mobile-nav button:hover { background: #e7eee2; color: var(--green); }
+	.mobile-nav button b { display: inline-grid; place-items: center; min-width: 16px; height: 16px; margin-left: 2px; border-radius: 50%; background: var(--yellow); color: var(--green); font-size: 9px; }
+}
+@media (max-width: 520px) {
+	.listing-grid { grid-template-columns: 1fr; gap: 14px; }
+	.listing-card { display: grid; grid-template-columns: 42% 58%; align-items: stretch; }
+	.listing-image { height: 100%; min-height: 150px; max-height: none; }
+	.listing-info { display: flex; flex-direction: column; justify-content: center; padding: 15px; }
+	.listing-title { gap: 7px; }
+	.listing-title h3 { min-height: 0; font-size: 13px; }
+	.product-seller { margin-top: 9px; }
+	.listing-location { margin-top: 10px; }
+	.shop-highlights { margin-top: 32px; }
+	.suggested-card { grid-template-columns: 72px 1fr; padding: 10px; }
+	.suggested-card img { width: 72px; height: 72px; }
+}
