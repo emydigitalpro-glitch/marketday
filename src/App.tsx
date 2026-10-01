@@ -986,6 +986,14 @@ function App() {
       <footer id="support">
         <span>marketday</span>
         <span>Made for local trade, with care.</span>
+        <a
+          className="github-link"
+          href="https://github.com/emydigitalpro-glitch/marketday"
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          GitHub
+        </a>
       </footer>
       {cartOpen && (
         <Cart
