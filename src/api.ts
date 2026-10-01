@@ -3,10 +3,38 @@ export type ApiUser = { id: string; name: string; email: string; role: 'buyer' |
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
 const request = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
-  const userId = JSON.parse(localStorage.getItem('marketday-user') || 'null')?.id
-  const response = await fetch(`${API_BASE}/api${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...(userId ? { 'X-User-Id': userId } : {}), ...options.headers } })
-  const result = await response.json()
-  if (!response.ok) throw new Error(result.error || 'Something went wrong.')
+  let userId: string | undefined
+  try {
+    userId = JSON.parse(localStorage.getItem('marketday-user') || 'null')?.id
+  } catch {
+    localStorage.removeItem('marketday-user')
+  }
+  const response = await fetch(`${API_BASE}/api${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(userId ? { 'X-User-Id': userId } : {}),
+      ...options.headers,
+    },
+  })
+
+  const text = await response.text()
+  let result: { error?: string } | T | null = null
+  if (text) {
+    try {
+      result = JSON.parse(text) as T
+    } catch {
+      if (!response.ok) {
+        throw new Error(`API request failed (${response.status}). The server returned an invalid response.`)
+      }
+      throw new Error('The server returned an invalid response. Please try again.')
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error((result as { error?: string } | null)?.error || `Request failed (${response.status})`)
+  }
+
   return result as T
 }
 
