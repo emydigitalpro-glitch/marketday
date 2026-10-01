@@ -131,7 +131,7 @@ footer { align-items: center; gap: 16px; margin: 0 6.5%; padding: 25px 0 31px; }
 
 .mobile-nav { display: none; }
 .mobile-pager { display: none; }
-.mobile-signin { display: none; }
+.site-header .mobile-signin { display: none; }
 @media (max-width: 800px) {
 	.header-actions .mobile-signin { display: block; padding: 8px 2px; color: var(--green); font-size: 11px; }
 	.mobile-nav { position: sticky; z-index: 3; top: 0; display: flex; gap: 4px; padding: 8px 6%; border-bottom: 1px solid #e6e3da; background: rgba(251, 250, 246, .96); box-shadow: 0 5px 16px #42523c0d; backdrop-filter: blur(12px); }
