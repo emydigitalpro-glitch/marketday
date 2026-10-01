@@ -788,6 +788,7 @@ function App() {
             <>
               <button className="text-button" onClick={() => openAuth("signin", "buyer")}>Buyer sign in</button>
               <button className="text-button" onClick={() => openAuth("signin", "seller")}>Seller sign in</button>
+              <button className="mobile-signin text-button" onClick={() => openAuth("signin")}>Sign in</button>
               <button
                 className="primary-button small"
                 onClick={() => openAuth("signup")}
