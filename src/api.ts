@@ -1,4 +1,4 @@
-export type ApiUser = { id: string; name: string; email: string; role: 'buyer' | 'seller'; approvalStatus?: 'pending' | 'approved'; profileImage?: string; phone?: string; address?: string; details?: string; shopName?: string; shopDescription?: string; shopLocation?: string; shopImage?: string; paymentEmail?: string; payoutReady?: boolean; payoutBank?: string; payoutAccountLast4?: string }
+export type ApiUser = { id: string; name: string; email: string; role: 'buyer' | 'seller'; approvalStatus?: 'pending' | 'approved' | 'rejected'; accountStatus?: 'active' | 'blocked'; profileImage?: string; phone?: string; address?: string; details?: string; shopName?: string; shopDescription?: string; shopLocation?: string; shopImage?: string; paymentEmail?: string; payoutReady?: boolean; payoutBank?: string; payoutAccountLast4?: string }
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 const isGithubPages = typeof window !== 'undefined' && window.location.hostname.endsWith('github.io')
@@ -66,5 +66,6 @@ export const api = {
   adminOverview: (adminKey: string) => adminRequest<{ users: unknown[]; products: unknown[]; orders: unknown[] }>('/admin/overview', adminKey),
   adminApproveSeller: (adminKey: string, sellerId: string) => adminRequest<{ user: unknown }>(`/admin/sellers/${encodeURIComponent(sellerId)}/approve`, adminKey, { method: 'POST' }),
   adminSetAccountStatus: (adminKey: string, userId: string, status: 'active' | 'blocked') => adminRequest<{ user: unknown }>(`/admin/accounts/${encodeURIComponent(userId)}/status`, adminKey, { method: 'POST', body: JSON.stringify({ status }) }),
+  adminSetApproval: (adminKey: string, userId: string, status: 'approved' | 'rejected') => adminRequest<{ user: unknown }>(`/admin/accounts/${encodeURIComponent(userId)}/approval`, adminKey, { method: 'POST', body: JSON.stringify({ status }) }),
   adminUpdateProduct: (adminKey: string, productId: string, input: unknown) => adminRequest<{ product: unknown }>(`/admin/products/${encodeURIComponent(productId)}`, adminKey, { method: 'POST', body: JSON.stringify(input) }),
 }

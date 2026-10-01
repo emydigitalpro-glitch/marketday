@@ -19,7 +19,7 @@ const readDb = () => JSON.parse(fs.readFileSync(dataFile, 'utf8'))
 const writeDb = (db) => fs.writeFileSync(dataFile, JSON.stringify(db, null, 2))
 const initialDb = readDb()
 if (!initialDb.products || initialDb.products.length === 0) { initialDb.products = seedProducts; writeDb(initialDb) }
-const publicUser = (user) => ({ id: user.id, name: user.name, email: user.email, role: user.role, approvalStatus: user.approvalStatus || 'approved', profileImage: user.profileImage, phone: user.phone, address: user.address, details: user.details, shopName: user.shopName, shopDescription: user.shopDescription, shopLocation: user.shopLocation, shopImage: user.shopImage, paymentEmail: user.paymentEmail, payoutReady: Boolean(user.subaccountCode), payoutBank: user.payoutBank, payoutAccountLast4: user.payoutAccountLast4 })
+const publicUser = (user) => ({ id: user.id, name: user.name, email: user.email, role: user.role, approvalStatus: user.approvalStatus || 'approved', accountStatus: user.accountStatus || 'active', profileImage: user.profileImage, phone: user.phone, address: user.address, details: user.details, shopName: user.shopName, shopDescription: user.shopDescription, shopLocation: user.shopLocation, shopImage: user.shopImage, paymentEmail: user.paymentEmail, payoutReady: Boolean(user.subaccountCode), payoutBank: user.payoutBank, payoutAccountLast4: user.payoutAccountLast4 })
 const sellerIsApproved = (seller) => seller && seller.role === 'seller' && seller.approvalStatus !== 'pending'
 const productNeedsReview = (product) => /\b(nude|nudity|naked|porn|sexual|sexually explicit|xxx|onlyfans|escort)\b/i.test([product.name, product.category, product.description, product.tag].filter(Boolean).join(' '))
 const ratingsFor = (db, targetType, targetId) => (db.ratings || []).filter((rating) => rating.targetType === targetType && rating.targetId === targetId)
@@ -86,6 +86,13 @@ const server = http.createServer(async (request, response) => {
       if (!account || !['active', 'blocked'].includes(input.status)) return json(response, 400, { error: 'Choose a valid account status.' })
       account.accountStatus = input.status; writeDb(db); return json(response, 200, { user: adminUser(account) })
     }
+    const adminApprovalMatch = url.pathname.match(/^\/api\/admin\/accounts\/([^/]+)\/approval$/)
+    if (request.method === 'POST' && adminApprovalMatch) {
+      if (!isAdmin(request)) return json(response, 401, { error: 'Admin key is invalid.' })
+      const input = await body(request); const account = db.users.find((user) => user.id === adminApprovalMatch[1])
+      if (!account || !['approved', 'rejected'].includes(input.status)) return json(response, 400, { error: 'Choose approve or reject.' })
+      account.approvalStatus = input.status; writeDb(db); return json(response, 200, { user: adminUser(account) })
+    }
     const adminProductMatch = url.pathname.match(/^\/api\/admin\/products\/([^/]+)$/)
     if (request.method === 'POST' && adminProductMatch) {
       if (!isAdmin(request)) return json(response, 401, { error: 'Admin key is invalid.' })
@@ -124,6 +131,7 @@ const server = http.createServer(async (request, response) => {
       const user = db.users.find((item) => item.email === email)
       if (!user || !['buyer', 'seller'].includes(input.role) || !validPassword(input.password || '', user)) return json(response, 401, { error: 'Email or password is incorrect.' })
       if (user.accountStatus === 'blocked') return json(response, 403, { error: 'This account has been blocked. Contact support.' })
+      if (user.approvalStatus === 'rejected') return json(response, 403, { error: 'This account has been rejected. Contact support.' })
       if (user.role !== input.role) return json(response, 403, { error: `This email belongs to a ${user.role} account. Choose ${user.role} sign in.` })
       return json(response, 200, { user: publicUser(user) })
     }
@@ -131,6 +139,7 @@ const server = http.createServer(async (request, response) => {
       const account = userFromRequest(request, db)
       if (!account) return json(response, 401, { error: 'Your session has expired.' })
       if (account.accountStatus === 'blocked') return json(response, 403, { error: 'This account has been blocked. Contact support.' })
+      if (account.approvalStatus === 'rejected') return json(response, 403, { error: 'This account has been rejected. Contact support.' })
       return json(response, 200, { user: publicUser(account) })
     }
     if (request.method === 'POST' && url.pathname === '/api/seller/payout-profile') {
