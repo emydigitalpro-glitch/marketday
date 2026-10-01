@@ -134,6 +134,7 @@ footer { align-items: center; gap: 16px; margin: 0 6.5%; padding: 25px 0 31px; }
 .site-header .mobile-signin { display: none; }
 @media (max-width: 800px) {
 	.header-actions .mobile-signin { display: block; padding: 8px 2px; color: var(--green); font-size: 11px; }
+	.header-actions .cart-button { display: none; }
 	.mobile-nav { position: sticky; z-index: 3; top: 0; display: flex; gap: 4px; padding: 8px 6%; border-bottom: 1px solid #e6e3da; background: rgba(251, 250, 246, .96); box-shadow: 0 5px 16px #42523c0d; backdrop-filter: blur(12px); }
 	.mobile-nav button { flex: 1; min-width: 0; border: 0; border-radius: 999px; background: transparent; color: #6d766e; font-size: 11px; font-weight: 600; padding: 10px 5px; }
 	.mobile-nav button.active, .mobile-nav button:hover { background: #e7eee2; color: var(--green); }
