@@ -152,7 +152,16 @@ footer { align-items: center; gap: 16px; margin: 0 6.5%; padding: 25px 0 31px; }
 	.shop-highlights { margin-top: 32px; }
 	.suggested-card { grid-template-columns: 72px 1fr; padding: 10px; }
 	.suggested-card img { width: 72px; height: 72px; }
+	.suggested-grid { min-height: 52vh; display: grid; grid-template-columns: 1fr; align-items: center; }
 	.suggested-card:not(.mobile-active), .top-seller-card:not(.mobile-active) { display: none; }
+	.suggested-card.mobile-active { width: 100%; min-height: 39vh; grid-template-columns: 44% 56%; align-items: stretch; margin: 0; padding: 0; }
+	.suggested-card.mobile-active img { width: 100%; height: 100%; min-height: 39vh; object-fit: cover; }
+	.suggested-card.mobile-active > div { display: flex; flex-direction: column; justify-content: center; padding: 20px 17px; }
+	.suggested-card.mobile-active strong { font-size: 15px; line-height: 1.25; }
+	.suggested-card.mobile-active small { margin: 9px 0; font-size: 10px; line-height: 1.45; }
+	.suggested-card.mobile-active span { font-size: 12px; }
+	.top-sellers { min-height: 22vh; display: grid; grid-template-columns: 1fr; align-items: center; }
+	.top-seller-card.mobile-active { min-height: 16vh; width: 100%; margin: 0; }
 	.mobile-pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 13px 0 5px; }
 	.mobile-pager button { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid #d7ddd2; border-radius: 50%; background: white; color: var(--green); font-size: 15px; }
 	.mobile-pager button:disabled { cursor: default; opacity: .35; }
