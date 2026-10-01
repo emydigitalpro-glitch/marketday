@@ -190,6 +190,7 @@ type Product = {
   image: string;
   stock: number;
   tag?: string;
+  approvalStatus?: "pending_review" | "approved";
   rating?: number;
   reviewCount?: number;
   salesCount?: number;
@@ -632,9 +633,12 @@ function App() {
       notify("Add a name, price and stock quantity.");
       return;
     }
+    let publishMessage = "Your product is now live.";
     try {
       const result = await api.createProduct(product);
-      setProducts((items) => [result.product as Product, ...items]);
+      const createdProduct = result.product as Product;
+      setProducts((items) => [createdProduct, ...items]);
+      publishMessage = result.reviewRequired ? "Your product was submitted for review." : publishMessage;
     } catch {
       setProducts((items) => [product, ...items]);
     }
@@ -646,7 +650,7 @@ function App() {
       location: "Ibadan, Nigeria",
       image: "",
     });
-    notify("Your product is now live.");
+    notify(publishMessage);
   };
   const removeProduct = async (id: string) => {
     try {
@@ -780,9 +784,11 @@ function App() {
               >
                 {user.name[0]} <span>{user.name.split(" ")[0]}</span>
               </button>
-              <button className="cart-button" onClick={() => setCartOpen(true)}>
-                Cart <b>{cart.reduce((sum, item) => sum + item.quantity, 0)}</b>
-              </button>
+              {user.role === "buyer" && (
+                <button className="cart-button" onClick={() => setCartOpen(true)}>
+                  Cart <b>{cart.reduce((sum, item) => sum + item.quantity, 0)}</b>
+                </button>
+              )}
             </>
           ) : (
             <>
@@ -810,7 +816,9 @@ function App() {
         {user && (
           <button className={page === "account" ? "active" : ""} onClick={() => setPage("account")}>Account</button>
         )}
-        <button onClick={() => user ? setCartOpen(true) : openAuth("signin", "buyer")}>Cart <b>{cart.reduce((sum, item) => sum + item.quantity, 0)}</b></button>
+        {user?.role !== "seller" && (
+          <button onClick={() => user ? setCartOpen(true) : openAuth("signin", "buyer")}>Cart <b>{cart.reduce((sum, item) => sum + item.quantity, 0)}</b></button>
+        )}
       </nav>
       {page === "shop" ? (
         <main>
@@ -1011,7 +1019,7 @@ function App() {
           GitHub
         </a>
       </footer>
-      {cartOpen && (
+      {cartOpen && user?.role === "buyer" && (
         <Cart
           items={cartItems}
           total={cartTotal}

@@ -56,7 +56,7 @@ export const api = {
   initializePayment: (items: unknown[]) => request<{ authorization_url: string; reference: string }>('/payments/initialize', { method: 'POST', body: JSON.stringify({ items }) }),
   verifyPayment: (reference: string) => request<{ order: unknown; products: unknown[] }>(`/payments/verify?reference=${encodeURIComponent(reference)}`),
   createOrder: (items: unknown[]) => request<{ order: unknown; products: unknown[] }>('/orders', { method: 'POST', body: JSON.stringify({ items }) }),
-  createProduct: (input: unknown) => request<{ product: unknown }>('/products', { method: 'POST', body: JSON.stringify(input) }),
+  createProduct: (input: unknown) => request<{ product: unknown; reviewRequired?: boolean }>('/products', { method: 'POST', body: JSON.stringify(input) }),
   removeProduct: (id: string) => request<{ ok: boolean }>(`/products/${id}`, { method: 'DELETE' }),
   submitRating: (input: unknown) => request<{ rating: unknown }>('/ratings', { method: 'POST', body: JSON.stringify(input) }),
   contactSeller: (input: unknown) => request<{ contact: unknown }>('/contacts', { method: 'POST', body: JSON.stringify(input) }),

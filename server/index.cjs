@@ -21,6 +21,7 @@ const initialDb = readDb()
 if (!initialDb.products || initialDb.products.length === 0) { initialDb.products = seedProducts; writeDb(initialDb) }
 const publicUser = (user) => ({ id: user.id, name: user.name, email: user.email, role: user.role, approvalStatus: user.approvalStatus || 'approved', profileImage: user.profileImage, phone: user.phone, address: user.address, details: user.details, shopName: user.shopName, shopDescription: user.shopDescription, shopLocation: user.shopLocation, shopImage: user.shopImage, paymentEmail: user.paymentEmail, payoutReady: Boolean(user.subaccountCode), payoutBank: user.payoutBank, payoutAccountLast4: user.payoutAccountLast4 })
 const sellerIsApproved = (seller) => seller && seller.role === 'seller' && seller.approvalStatus !== 'pending'
+const productNeedsReview = (product) => /\b(nude|nudity|naked|porn|sexual|sexually explicit|xxx|onlyfans|escort)\b/i.test([product.name, product.category, product.description, product.tag].filter(Boolean).join(' '))
 const ratingsFor = (db, targetType, targetId) => (db.ratings || []).filter((rating) => rating.targetType === targetType && rating.targetId === targetId)
 const ratingStats = (db, targetType, targetId) => { const ratings = ratingsFor(db, targetType, targetId); return { rating: ratings.length ? Number((ratings.reduce((sum, item) => sum + item.score, 0) / ratings.length).toFixed(1)) : 0, reviewCount: ratings.length } }
 const productSales = (db, productId) => db.orders.filter((order) => order.status === 'Paid' && order.items.some((item) => item.productId === productId)).reduce((sum, order) => sum + (order.items.find((item) => item.productId === productId)?.quantity || 0), 0)
@@ -64,7 +65,7 @@ const server = http.createServer(async (request, response) => {
       }
       return json(response, 200, { received: true })
     }
-    if (request.method === 'GET' && url.pathname === '/api/products') return json(response, 200, db.products.filter((product) => { const owner = db.users.find((user) => user.id === product.sellerId); return !owner || sellerIsApproved(owner) }).map((product) => enrichProduct(db, product)))
+    if (request.method === 'GET' && url.pathname === '/api/products') return json(response, 200, db.products.filter((product) => { const owner = db.users.find((user) => user.id === product.sellerId); return product.approvalStatus !== 'pending_review' && (!owner || sellerIsApproved(owner)) }).map((product) => enrichProduct(db, product)))
     const sellerMatch = url.pathname.match(/^\/api\/sellers\/([^/]+)$/)
     if (request.method === 'GET' && sellerMatch) {
       const viewer = userFromRequest(request, db)
@@ -219,10 +220,10 @@ const server = http.createServer(async (request, response) => {
     if (request.method === 'POST' && url.pathname === '/api/products') {
       const input = await body(request); const seller = userFromRequest(request, db)
       if (!sellerIsApproved(seller)) return json(response, 403, { error: 'Your seller account must be approved before publishing products.' })
-      const product = { ...input, id: crypto.randomUUID(), sellerId: seller.id, seller: seller.shopName || seller.name, price: Number(input.price), stock: Number(input.stock), tag: 'New listing' }
+      const product = { ...input, id: crypto.randomUUID(), sellerId: seller.id, seller: seller.shopName || seller.name, price: Number(input.price), stock: Number(input.stock), tag: 'New listing', approvalStatus: productNeedsReview(input) ? 'pending_review' : 'approved' }
       if (!product.name || !product.price || !product.stock) return json(response, 400, { error: 'Name, price and stock are required.' })
       if (product.image && (!/^(https?:\/\/|data:image\/(jpeg|png|webp);base64,)/.test(product.image) || product.image.length > 1000000)) return json(response, 400, { error: 'Product image must be a valid URL or an image smaller than 1 MB.' })
-      db.products.unshift(product); writeDb(db); return json(response, 201, { product })
+      db.products.unshift(product); writeDb(db); return json(response, 201, { product, reviewRequired: product.approvalStatus === 'pending_review' })
     }
     const productMatch = url.pathname.match(/^\/api\/products\/([^/]+)$/)
     if (request.method === 'DELETE' && productMatch) {
