@@ -84,6 +84,10 @@ function AdminPage() {
     setProducts(result.products as AdminProduct[]);
     setOrders(result.orders as Order[]);
   };
+      useEffect(() => {
+        if (!adminKey) return;
+        load(adminKey).catch((adminError) => setNotice((adminError as Error).message));
+      }, [adminKey]);
   const signIn = async (event: FormEvent) => {
     event.preventDefault();
     try {
