@@ -42,6 +42,8 @@ const request = async <T>(path: string, options: RequestInit = {}): Promise<T> =
   return result as T
 }
 
+const adminRequest = async <T>(path: string, adminKey: string, options: RequestInit = {}): Promise<T> => request<T>(path, { ...options, headers: { 'X-Admin-Key': adminKey, ...options.headers } })
+
 export const api = {
   products: () => request<unknown[]>('/products'),
   signup: (input: unknown) => request<{ user: ApiUser }>('/auth/signup', { method: 'POST', body: JSON.stringify(input) }),
@@ -61,4 +63,8 @@ export const api = {
   submitRating: (input: unknown) => request<{ rating: unknown }>('/ratings', { method: 'POST', body: JSON.stringify(input) }),
   contactSeller: (input: unknown) => request<{ contact: unknown }>('/contacts', { method: 'POST', body: JSON.stringify(input) }),
   sellerContacts: (sellerId: string) => request<unknown[]>(`/contacts?sellerId=${encodeURIComponent(sellerId)}`),
+  adminOverview: (adminKey: string) => adminRequest<{ users: unknown[]; products: unknown[]; orders: unknown[] }>('/admin/overview', adminKey),
+  adminApproveSeller: (adminKey: string, sellerId: string) => adminRequest<{ user: unknown }>(`/admin/sellers/${encodeURIComponent(sellerId)}/approve`, adminKey, { method: 'POST' }),
+  adminSetAccountStatus: (adminKey: string, userId: string, status: 'active' | 'blocked') => adminRequest<{ user: unknown }>(`/admin/accounts/${encodeURIComponent(userId)}/status`, adminKey, { method: 'POST', body: JSON.stringify({ status }) }),
+  adminUpdateProduct: (adminKey: string, productId: string, input: unknown) => adminRequest<{ product: unknown }>(`/admin/products/${encodeURIComponent(productId)}`, adminKey, { method: 'POST', body: JSON.stringify(input) }),
 }

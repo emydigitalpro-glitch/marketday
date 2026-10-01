@@ -69,6 +69,57 @@ function ShopHighlights({ products, openSeller, viewAllSellers }: { products: Pr
   return <section className="shop-highlights"><div className="highlight-heading"><div><p className="eyebrow">Picked by performance</p><h2>Good places to start</h2></div><span>Sales and ratings guide these picks</span></div><div className="suggested-grid">{suggested.map((product, index) => <article className={`suggested-card ${index === suggestedIndex ? "mobile-active" : ""}`} key={product.id}><img src={product.image} alt="" /><div><strong>{product.name}</strong><small>Sold by {product.seller}</small><span>{product.rating ? `★ ${product.rating}` : "New listing"} · {money(product.price)}</span></div></article>)}</div><div className="mobile-pager" aria-label="Recommended products"><button disabled={suggestedIndex === 0} onClick={() => setSuggestedIndex((current) => Math.max(0, current - 1))}>←</button><span>{suggestedIndex + 1} / {suggested.length}</span><button disabled={suggestedIndex === suggested.length - 1} onClick={() => setSuggestedIndex((current) => Math.min(suggested.length - 1, current + 1))}>→</button></div><div className="highlight-heading seller-highlight-heading"><div><p className="eyebrow">Community favourites</p><h2>Top sellers nearby</h2></div></div><div className="top-sellers">{sellers.map((sellerProducts, index) => { const seller = sellerProducts[0]; const score = Math.max(...sellerProducts.map((item) => item.performanceScore || 0)); return <button className={`top-seller-card ${index === sellerIndex ? "mobile-active" : ""}`} key={seller.sellerId} onClick={() => openSeller(seller.sellerId)}><span className="top-seller-avatar">{seller.seller[0]}</span><span><strong>{seller.seller}</strong><small>{seller.location}</small><small>{seller.sellerRating ? `★ ${seller.sellerRating}` : "Building a reputation"} · {sellerProducts.length} {sellerProducts.length === 1 ? "listing" : "listings"}</small></span><em>{score > 0 ? "Top rated" : "New"}</em></button>; })}</div><div className="mobile-pager" aria-label="Community sellers"><button disabled={sellerIndex === 0} onClick={() => setSellerIndex((current) => Math.max(0, current - 1))}>←</button><span>{sellerIndex + 1} / {sellers.length}</span><button disabled={sellerIndex === sellers.length - 1} onClick={() => setSellerIndex((current) => Math.min(sellers.length - 1, current + 1))}>→</button></div><button className="section-link-button" onClick={viewAllSellers}>View all sellers</button></section>;
 }
 
+function AdminPage() {
+  const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem("marketday-admin-key") || "");
+  const [keyInput, setKeyInput] = useState(adminKey);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [products, setProducts] = useState<AdminProduct[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [activeTab, setActiveTab] = useState<"overview" | "products" | "accounts">("overview");
+  const [selectedProduct, setSelectedProduct] = useState<AdminProduct | null>(null);
+  const [notice, setNotice] = useState("");
+  const load = async (key: string) => {
+    const result = await api.adminOverview(key);
+    setUsers(result.users as AdminUser[]);
+    setProducts(result.products as AdminProduct[]);
+    setOrders(result.orders as Order[]);
+  };
+  const signIn = async (event: FormEvent) => {
+    event.preventDefault();
+    try {
+      await load(keyInput);
+      setAdminKey(keyInput);
+      sessionStorage.setItem("marketday-admin-key", keyInput);
+      setNotice("");
+    } catch (adminError) {
+      setNotice((adminError as Error).message);
+    }
+  };
+  const refresh = async () => {
+    try { await load(adminKey); } catch (adminError) { setNotice((adminError as Error).message); }
+  };
+  const approveSeller = async (id: string) => {
+    await api.adminApproveSeller(adminKey, id); await refresh();
+  };
+  const setAccountStatus = async (id: string, status: "active" | "blocked") => {
+    await api.adminSetAccountStatus(adminKey, id, status); await refresh();
+  };
+  const saveProduct = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedProduct) return;
+    const form = new FormData(event.currentTarget);
+    await api.adminUpdateProduct(adminKey, selectedProduct.id, {
+      name: form.get("name"), category: form.get("category"), location: form.get("location"),
+      price: Number(form.get("price")), stock: Number(form.get("stock")), approvalStatus: form.get("approvalStatus"),
+    });
+    setSelectedProduct(null); await refresh();
+  };
+  if (!adminKey) return <main className="admin-login"><form className="admin-login-card" onSubmit={signIn}><p className="eyebrow">Marketday control room</p><h1>Admin sign in</h1><p>Use the private admin approval key configured on the API service.</p><label>Admin key<input type="password" value={keyInput} onChange={(event) => setKeyInput(event.target.value)} required /></label>{notice && <p className="form-error">{notice}</p>}<button className="primary-button full">Open dashboard</button><a href="/marketday/">Return to marketplace</a></form></main>;
+  const pendingSellers = users.filter((item) => item.role === "seller" && item.approvalStatus === "pending").length;
+  const pendingProducts = products.filter((item) => item.approvalStatus === "pending_review").length;
+  return <main className="admin-page"><aside className="admin-sidebar"><div className="admin-brand"><span className="brand-mark">m</span><strong>marketday</strong><small>Admin studio</small></div><nav><button className={activeTab === "overview" ? "active" : ""} onClick={() => setActiveTab("overview")}>Overview</button><button className={activeTab === "products" ? "active" : ""} onClick={() => setActiveTab("products")}>Products <b>{pendingProducts}</b></button><button className={activeTab === "accounts" ? "active" : ""} onClick={() => setActiveTab("accounts")}>Accounts <b>{pendingSellers}</b></button></nav><a href="/marketday/">View marketplace</a></aside><section className="admin-content"><header className="admin-topbar"><div><p className="eyebrow">Operations</p><h1>{activeTab === "overview" ? "Good morning, admin." : activeTab === "products" ? "Product review" : "Account management"}</h1></div><button className="text-button" onClick={() => { sessionStorage.removeItem("marketday-admin-key"); setAdminKey(""); }}>Sign out</button></header>{notice && <p className="admin-notice">{notice}</p>}{activeTab === "overview" && <><div className="admin-metrics"><div><small>Total accounts</small><strong>{users.length}</strong></div><div><small>Live products</small><strong>{products.filter((item) => item.approvalStatus !== "pending_review").length}</strong></div><div><small>Needs review</small><strong>{pendingProducts + pendingSellers}</strong></div><div><small>Orders</small><strong>{orders.length}</strong></div></div><section className="admin-panel"><div className="admin-panel-heading"><div><p className="eyebrow">Attention needed</p><h2>Review queue</h2></div><button className="section-link-button" onClick={() => setActiveTab("products")}>Manage products</button></div><div className="admin-queue"><span>{pendingSellers} seller applications waiting</span><span>{pendingProducts} products waiting</span></div></section></>}{activeTab === "products" && <section className="admin-panel"><div className="admin-panel-heading"><div><p className="eyebrow">Catalog control</p><h2>Every product in the marketplace</h2></div></div><div className="admin-table">{products.map((product) => <div className="admin-row" key={product.id}><img src={product.image} alt="" /><div><strong>{product.name}</strong><small>{product.seller} · {product.category}</small></div><span className={`admin-status ${product.approvalStatus || "approved"}`}>{product.approvalStatus === "pending_review" ? "Needs review" : product.approvalStatus || "Approved"}</span><button className="section-link-button" onClick={() => setSelectedProduct(product)}>Edit</button></div>)}</div></section>}{activeTab === "accounts" && <section className="admin-panel"><div className="admin-panel-heading"><div><p className="eyebrow">People and shops</p><h2>Every account</h2></div></div><div className="admin-table">{users.map((account) => <div className="admin-row account-row" key={account.id}><div className="admin-avatar">{account.name[0]}</div><div><strong>{account.name}</strong><small>{account.email} · {account.role}</small></div><span className={`admin-status ${account.accountStatus || "active"}`}>{account.approvalStatus === "pending" ? "Seller review" : account.accountStatus || "Active"}</span><div className="admin-actions">{account.role === "seller" && account.approvalStatus === "pending" && <button className="primary-button small" onClick={() => approveSeller(account.id)}>Approve</button>}<button className="section-link-button" onClick={() => setAccountStatus(account.id, account.accountStatus === "blocked" ? "active" : "blocked")}>{account.accountStatus === "blocked" ? "Unblock" : "Block"}</button></div></div>)}</div></section>}{selectedProduct && <div className="modal-backdrop"><form className="modal admin-edit-modal" onSubmit={saveProduct}><button type="button" className="modal-close" onClick={() => setSelectedProduct(null)}>×</button><p className="eyebrow">Catalog editor</p><h2>Edit product</h2><label>Name<input name="name" defaultValue={selectedProduct.name} required /></label><label>Category<input name="category" defaultValue={selectedProduct.category} required /></label><label>Location<input name="location" defaultValue={selectedProduct.location} required /></label><div className="form-row"><label>Price<input name="price" type="number" defaultValue={selectedProduct.price} required /></label><label>Stock<input name="stock" type="number" defaultValue={selectedProduct.stock} required /></label></div><label>Status<select name="approvalStatus" defaultValue={selectedProduct.approvalStatus || "approved"}><option value="approved">Approved</option><option value="pending_review">Pending review</option><option value="rejected">Rejected</option></select></label><button className="primary-button full">Save changes</button></form></div>}</section></main>;
+}
+
 function ProductPage({ products, add, openSeller, back }: { products: Product[]; add: (product: Product) => void; openSeller: (sellerId: string) => void; back: () => void }) {
   return <main className="product-page"><button className="back-button" onClick={back}>← Back to home</button><div className="product-page-heading"><div><p className="eyebrow">The full marketplace</p><h1>Browse all products</h1><p>Explore products from local sellers and open a seller's shop before you buy.</p></div><span>{products.length} available items</span></div><div className="listing-grid product-page-grid">{products.map((product) => <article className="listing-card" key={product.id}><div className="listing-image"><img src={product.image} alt={product.name} />{product.tag && <span className="listing-tag">{product.tag}</span>}</div><div className="listing-info"><div className="listing-title"><h3>{product.name}</h3><strong>{money(product.price)}</strong></div><div className="product-seller"><span className="seller-label">Sold by</span><button className="seller-link" onClick={() => openSeller(product.sellerId)}>{product.seller}</button></div><span className="listing-location">⌖ {product.location}</span><button className="add-button" onClick={() => add(product)}>Add to cart</button></div></article>)}</div>{!products.length && <div className="empty-state">No products are available yet.</div>}</main>;
 }
@@ -198,6 +249,8 @@ type Product = {
   sellerRating?: number;
   sellerReviewCount?: number;
 };
+type AdminUser = User & { accountStatus?: "active" | "blocked" };
+type AdminProduct = Product & { approvalStatus?: "pending_review" | "approved" | "rejected" };
 type User = {
   id: string;
   name: string;
@@ -759,6 +812,7 @@ function App() {
     setSelectedSeller(sellerId);
     setPage("seller");
   };
+  if (window.location.pathname.endsWith("/admin") || new URLSearchParams(window.location.search).get("admin") === "1") return <AdminPage />;
   return (
     <div className="app-shell">
       <header className="site-header">

@@ -28,8 +28,8 @@ const productSales = (db, productId) => db.orders.filter((order) => order.status
 const enrichProduct = (db, product) => { const productStats = ratingStats(db, 'product', product.id); const sellerStats = ratingStats(db, 'seller', product.sellerId); const salesCount = productSales(db, product.id); return { ...product, rating: productStats.rating, reviewCount: productStats.reviewCount, salesCount, sellerRating: sellerStats.rating, sellerReviewCount: sellerStats.reviewCount, performanceScore: salesCount * 4 + productStats.rating * productStats.reviewCount + sellerStats.rating * sellerStats.reviewCount } }
 const allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173', ...(process.env.ALLOWED_ORIGINS || '').split(',').map((origin) => origin.trim()).filter(Boolean)]
 const resolveOrigin = (origin) => (origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0])
-const corsHeaders = (origin) => ({ 'Access-Control-Allow-Origin': resolveOrigin(origin), 'Access-Control-Allow-Headers': 'Content-Type, X-User-Id', 'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS' })
-const json = (response, status, body) => { response.writeHead(status, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': resolveOrigin(response.requestOrigin), 'Access-Control-Allow-Headers': 'Content-Type, X-User-Id' }); response.end(JSON.stringify(body)) }
+const corsHeaders = (origin) => ({ 'Access-Control-Allow-Origin': resolveOrigin(origin), 'Access-Control-Allow-Headers': 'Content-Type, X-User-Id, X-Admin-Key', 'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS' })
+const json = (response, status, body) => { response.writeHead(status, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': resolveOrigin(response.requestOrigin), 'Access-Control-Allow-Headers': 'Content-Type, X-User-Id, X-Admin-Key' }); response.end(JSON.stringify(body)) }
 const body = (request) => new Promise((resolve, reject) => { let data = ''; request.on('data', (chunk) => { data += chunk }); request.on('end', () => { try { resolve(data ? JSON.parse(data) : {}) } catch { reject(new Error('Invalid JSON')) } }) })
 const rawBody = (request) => new Promise((resolve) => { const chunks = []; request.on('data', (chunk) => chunks.push(chunk)); request.on('end', () => resolve(Buffer.concat(chunks))) })
 const hash = (password, salt = crypto.randomBytes(16).toString('hex')) => ({ salt, digest: crypto.scryptSync(password, salt, 64).toString('hex') })
@@ -39,6 +39,8 @@ const validPasswordPolicy = (password) => typeof password === 'string' && passwo
 const authAttempts = new Map()
 const allowAuthAttempt = (key) => { const now = Date.now(); const recent = (authAttempts.get(key) || []).filter((time) => now - time < 15 * 60 * 1000); if (recent.length >= 10) return false; recent.push(now); authAttempts.set(key, recent); return true }
 const userFromRequest = (request, db) => db.users.find((user) => user.id === request.headers['x-user-id'])
+const isAdmin = (request) => Boolean(process.env.ADMIN_APPROVAL_KEY && request.headers['x-admin-key'] === process.env.ADMIN_APPROVAL_KEY)
+const adminUser = (user) => ({ ...publicUser(user), accountStatus: user.accountStatus || 'active' })
 const paystackRequest = async (path, options = {}) => {
   if (!process.env.PAYSTACK_SECRET_KEY) throw new Error('PAYSTACK_SECRET_KEY is not configured.')
   const result = await fetch(`https://api.paystack.co${path}`, { ...options, headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`, 'Content-Type': 'application/json', ...(options.headers || {}) } })
@@ -65,7 +67,38 @@ const server = http.createServer(async (request, response) => {
       }
       return json(response, 200, { received: true })
     }
-    if (request.method === 'GET' && url.pathname === '/api/products') return json(response, 200, db.products.filter((product) => { const owner = db.users.find((user) => user.id === product.sellerId); return product.approvalStatus !== 'pending_review' && (!owner || sellerIsApproved(owner)) }).map((product) => enrichProduct(db, product)))
+    if (request.method === 'GET' && url.pathname === '/api/products') return json(response, 200, db.products.filter((product) => { const owner = db.users.find((user) => user.id === product.sellerId); return product.approvalStatus !== 'pending_review' && (!owner || (owner.accountStatus !== 'blocked' && sellerIsApproved(owner))) }).map((product) => enrichProduct(db, product)))
+    if (url.pathname === '/api/admin/overview') {
+      if (!isAdmin(request)) return json(response, 401, { error: 'Admin key is invalid.' })
+      return json(response, 200, { users: db.users.map(adminUser), products: db.products.map((product) => ({ ...enrichProduct(db, product), approvalStatus: product.approvalStatus || 'approved' })), orders: db.orders || [] })
+    }
+    const adminSellerMatch = url.pathname.match(/^\/api\/admin\/sellers\/([^/]+)\/approve$/)
+    if (request.method === 'POST' && adminSellerMatch) {
+      if (!isAdmin(request)) return json(response, 401, { error: 'Admin key is invalid.' })
+      const seller = db.users.find((user) => user.id === adminSellerMatch[1] && user.role === 'seller')
+      if (!seller) return json(response, 404, { error: 'Seller not found.' })
+      seller.approvalStatus = 'approved'; seller.accountStatus = 'active'; writeDb(db); return json(response, 200, { user: adminUser(seller) })
+    }
+    const adminAccountMatch = url.pathname.match(/^\/api\/admin\/accounts\/([^/]+)\/status$/)
+    if (request.method === 'POST' && adminAccountMatch) {
+      if (!isAdmin(request)) return json(response, 401, { error: 'Admin key is invalid.' })
+      const input = await body(request); const account = db.users.find((user) => user.id === adminAccountMatch[1])
+      if (!account || !['active', 'blocked'].includes(input.status)) return json(response, 400, { error: 'Choose a valid account status.' })
+      account.accountStatus = input.status; writeDb(db); return json(response, 200, { user: adminUser(account) })
+    }
+    const adminProductMatch = url.pathname.match(/^\/api\/admin\/products\/([^/]+)$/)
+    if (request.method === 'POST' && adminProductMatch) {
+      if (!isAdmin(request)) return json(response, 401, { error: 'Admin key is invalid.' })
+      const input = await body(request); const product = db.products.find((entry) => entry.id === adminProductMatch[1])
+      if (!product) return json(response, 404, { error: 'Product not found.' })
+      if (input.name !== undefined) product.name = String(input.name).trim().slice(0, 120)
+      if (input.category !== undefined) product.category = String(input.category).trim().slice(0, 60)
+      if (input.location !== undefined) product.location = String(input.location).trim().slice(0, 120)
+      if (input.price !== undefined) product.price = Number(input.price)
+      if (input.stock !== undefined) product.stock = Number(input.stock)
+      if (input.approvalStatus !== undefined && ['approved', 'pending_review', 'rejected'].includes(input.approvalStatus)) product.approvalStatus = input.approvalStatus
+      writeDb(db); return json(response, 200, { product: enrichProduct(db, product) })
+    }
     const sellerMatch = url.pathname.match(/^\/api\/sellers\/([^/]+)$/)
     if (request.method === 'GET' && sellerMatch) {
       const viewer = userFromRequest(request, db)
@@ -90,12 +123,14 @@ const server = http.createServer(async (request, response) => {
       if (!allowAuthAttempt(`${request.socket.remoteAddress}:${email}`)) return json(response, 429, { error: 'Too many sign-in attempts. Try again in 15 minutes.' })
       const user = db.users.find((item) => item.email === email)
       if (!user || !['buyer', 'seller'].includes(input.role) || !validPassword(input.password || '', user)) return json(response, 401, { error: 'Email or password is incorrect.' })
+      if (user.accountStatus === 'blocked') return json(response, 403, { error: 'This account has been blocked. Contact support.' })
       if (user.role !== input.role) return json(response, 403, { error: `This email belongs to a ${user.role} account. Choose ${user.role} sign in.` })
       return json(response, 200, { user: publicUser(user) })
     }
     if (request.method === 'GET' && url.pathname === '/api/auth/session') {
       const account = userFromRequest(request, db)
       if (!account) return json(response, 401, { error: 'Your session has expired.' })
+      if (account.accountStatus === 'blocked') return json(response, 403, { error: 'This account has been blocked. Contact support.' })
       return json(response, 200, { user: publicUser(account) })
     }
     if (request.method === 'POST' && url.pathname === '/api/seller/payout-profile') {
